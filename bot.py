@@ -3,19 +3,30 @@ import math
 import asyncio
 from mcstatus import JavaServer
 from discord.ext import tasks
-from config import DISCORD_TOKEN, MINECRAFT_SERVER_IP, MINECRAFT_PORT, CHANNEL_ID
+from config import DISCORD_TOKEN, CHANNEL_ID,MINECRAFT_SERVER_IP, MINECRAFT_PORT
 
 class MinecraftStatusBot(discord.Client):
     def __init__(self, **kwargs):
         intents = discord.Intents.default()
         intents.message_content = True
         super().__init__(intents=intents, **kwargs)
-        self.server = JavaServer.lookup(f"{MINECRAFT_SERVER_IP}:{MINECRAFT_PORT}")
-        self.status_message = None
         
-    def server_status(self):
+        self.servers = [
+            {
+                "server": JavaServer.lookup(f"{MINECRAFT_SERVER_IP}:{MINECRAFT_PORT}"),
+                "name": "MODDED", 
+                "status_message": None
+            },
+            {
+                "server": JavaServer.lookup(f"{MINECRAFT_SERVER_IP}"),
+                "name": "VANILLA",
+                "status_message": None
+            }
+        ]
+        
+    def get_server_status(self, server):
         try:
-            status = self.server.status()
+            status = server.status()
             latency = math.floor(status.latency)
             online_players = status.players.online
             max_players = status.players.max
@@ -52,68 +63,73 @@ class MinecraftStatusBot(discord.Client):
         if not channel:
             print(f"Cannot find channel with ID {CHANNEL_ID}")
             return
-            
-        status_data = self.server_status()
         
-        if status_data['online']:
-            embed = discord.Embed(
-                title="Minecraft Server Status",
-                description=status_data['motd'],
-                color=discord.Color.green()
-            )
-            embed.add_field(
-                name="Players", 
-                value=f"{status_data['players']}/{status_data['max_players']}", 
-                inline=True
-            )
-            embed.add_field(
-                name="Latency", 
-                value=f"{status_data['latency']} ms", 
-                inline=True
-            )
+        for server_info in self.servers:
+            status_data = self.get_server_status(server_info["server"])
             
-            if status_data['player_list']:
-                players_str = "\n".join(status_data['player_list'])
-                if len(players_str) > 1024:
-                    players_str = players_str[:1021] + "..."
+            if status_data['online']:
+                embed = discord.Embed(
+                    title=f"{server_info['name']} Status",
+                    description=status_data['motd'],
+                    color=discord.Color.green()
+                )
                 embed.add_field(
-                    name="Online Players", 
-                    value=players_str or "None", 
-                    inline=False
+                    name="Players", 
+                    value=f"{status_data['players']}/{status_data['max_players']}", 
+                    inline=True
+                )
+                embed.add_field(
+                    name="Latency", 
+                    value=f"{status_data['latency']} ms", 
+                    inline=True
                 )
                 
-            embed.set_footer(text=f"Last updated: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-        else:
-            embed = discord.Embed(
-                title="Minecraft Server Status",
-                description="**Server Offline**",
-                color=discord.Color.red()
-            )
-            embed.add_field(
-                name="Error", 
-                value=status_data.get('error', 'Could not connect to the server'), 
-                inline=False
-            )
-            embed.set_footer(text=f"Last checked: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
-        
-        try:
-            if self.status_message:
-                try:
-                    await self.status_message.edit(embed=embed)
-                except discord.NotFound:
-                    self.status_message = await channel.send(embed=embed)
+                if status_data['player_list']:
+                    players_str = "\n".join(status_data['player_list'])
+                    if len(players_str) > 1024:
+                        players_str = players_str[:1021] + "..."
+                    embed.add_field(
+                        name="Online Players", 
+                        value=players_str or "None", 
+                        inline=False
+                    )
+                    
+                embed.set_footer(text=f"Last updated: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
             else:
-                async for message in channel.history(limit=10):
-                    if message.author == self.user:
-                        try:
-                            await message.delete()
-                        except:
-                            pass
-                        break
-                
-                self.status_message = await channel.send(embed=embed)
-        except Exception as e:
-            print(f"Error updating status message: {e}")
+                embed = discord.Embed(
+                    title=f"{server_info['name']} Status",
+                    description="**Server Offline**",
+                    color=discord.Color.red()
+                )
+                embed.add_field(
+                    name="Error", 
+                    value=status_data.get('error', 'Could not connect to the server'), 
+                    inline=False
+                )
+                embed.set_footer(text=f"Last checked: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            
+            try:
+                if server_info["status_message"]:
+                    try:
+                        await server_info["status_message"].edit(embed=embed)
+                    except discord.NotFound:
+                        server_info["status_message"] = await channel.send(embed=embed)
+                else:
+                    found_message = False
+                    async for message in channel.history(limit=20):
+                        if message.author == self.user and message.embeds and message.embeds[0].title.startswith(server_info["name"]):
+                            try:
+                                await message.edit(embed=embed)
+                                server_info["status_message"] = message
+                                found_message = True
+                                break
+                            except:
+                                pass
+                    
+                    if not found_message:
+                        server_info["status_message"] = await channel.send(embed=embed)
+            except Exception as e:
+                print(f"Error updating status message for {server_info['name']}: {e}")
     
     @update_status_loop.before_loop
     async def before_update_loop(self):
@@ -121,7 +137,10 @@ class MinecraftStatusBot(discord.Client):
         
     async def on_ready(self):
         print(f'Logged in as {self.user} (ID: {self.user.id})')
-        print(f'Monitoring Minecraft server at {MINECRAFT_SERVER_IP}:{MINECRAFT_PORT}')
+        print('Monitoring Minecraft servers:')
+        for idx, server_info in enumerate(self.servers):
+            server_address = f"{MINECRAFT_SERVER_IP}:{MINECRAFT_PORT}" if idx == 0 else f"{MINECRAFT_SERVER_IP}"
+            print(f'- {server_info["name"]}: {server_address}')
         print(f'Sending updates to channel ID: {CHANNEL_ID}')
         print('------')
 
