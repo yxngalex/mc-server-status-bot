@@ -68,7 +68,6 @@ class MinecraftStatusBot(discord.Client):
         for server_info in self.servers:
             status_data = self.get_server_status(server_info["server"])
             
-            # Create file objects first
             filename = server_info["icon_path"].split("/")[-1]
             icon_file = discord.File(server_info["icon_path"], filename=filename)
             
@@ -110,8 +109,6 @@ class MinecraftStatusBot(discord.Client):
                     inline=False
                 )
             
-            # Add small image to top left using set_author
-            # Use the correct format for attachment URLs in Discord
             embed.set_author(
                 name=server_info['name'],
                 icon_url=f"attachment://{filename}"
@@ -122,7 +119,6 @@ class MinecraftStatusBot(discord.Client):
             try:
                 if server_info["status_message"]:
                     try:
-                        # For editing, need to recreate the file each time
                         new_icon_file = discord.File(server_info["icon_path"], filename=filename)
                         await server_info["status_message"].edit(embed=embed, attachments=[new_icon_file])
                     except discord.NotFound:
@@ -132,7 +128,6 @@ class MinecraftStatusBot(discord.Client):
                     async for message in channel.history(limit=20):
                         if message.author == self.user and message.embeds and message.embeds[0].title.startswith(server_info["name"]):
                             try:
-                                # For editing existing messages, need new file
                                 new_icon_file = discord.File(server_info["icon_path"], filename=filename)
                                 await message.edit(embed=embed, attachments=[new_icon_file])
                                 server_info["status_message"] = message
