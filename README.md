@@ -31,6 +31,7 @@ Create a **`parameters.env`** file in the root directory. This file will contain
 DISCORD_TOKEN=your_discord_bot_token
 MINECRAFT_SERVER_IP=your.server.ip
 MINECRAFT_PORT=25565
+CHANNEL_ID=12345
 ```
 
 ### 4. Set up `config.py`
@@ -47,6 +48,7 @@ load_dotenv("parameters.env")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 MINECRAFT_SERVER_IP = os.getenv("MINECRAFT_SERVER_IP")
 MINECRAFT_PORT = int(os.getenv("MINECRAFT_PORT", 25565))  # Default to 25565 if missing
+CHANNEL_ID = int(os.getenv("CHANNEL_ID"))
 ```
 
 ## Usage
