@@ -3,7 +3,7 @@ import math
 import asyncio
 from mcstatus import JavaServer
 from discord.ext import tasks
-from config import DISCORD_TOKEN, CHANNEL_ID,MINECRAFT_SERVER_IP, MINECRAFT_PORT
+from config import DISCORD_TOKEN, CHANNEL_ID, MINECRAFT_SERVER_IP, MINECRAFT_PORT
 
 class MinecraftStatusBot(discord.Client):
     def __init__(self, **kwargs):
@@ -15,12 +15,14 @@ class MinecraftStatusBot(discord.Client):
             {
                 "server": JavaServer.lookup(f"{MINECRAFT_SERVER_IP}:{MINECRAFT_PORT}"),
                 "name": "MODDED", 
-                "status_message": None
+                "status_message": None,
+                "icon_path": "images/modded.jpg"
             },
             {
                 "server": JavaServer.lookup(f"{MINECRAFT_SERVER_IP}"),
                 "name": "VANILLA",
-                "status_message": None
+                "status_message": None,
+                "icon_path": "images/vanilla.jpg"
             }
         ]
         
@@ -45,7 +47,6 @@ class MinecraftStatusBot(discord.Client):
                 'player_list': player_list
             }
         except Exception as e:
-            print(f"Error retrieving server status: {e}")
             return {
                 'online': False,
                 'error': str(e)
@@ -66,6 +67,10 @@ class MinecraftStatusBot(discord.Client):
         
         for server_info in self.servers:
             status_data = self.get_server_status(server_info["server"])
+            
+            # Create file objects first
+            filename = server_info["icon_path"].split("/")[-1]
+            icon_file = discord.File(server_info["icon_path"], filename=filename)
             
             if status_data['online']:
                 embed = discord.Embed(
@@ -93,8 +98,6 @@ class MinecraftStatusBot(discord.Client):
                         value=players_str or "None", 
                         inline=False
                     )
-                    
-                embed.set_footer(text=f"Last updated: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
             else:
                 embed = discord.Embed(
                     title=f"{server_info['name']} Status",
@@ -106,28 +109,40 @@ class MinecraftStatusBot(discord.Client):
                     value=status_data.get('error', 'Could not connect to the server'), 
                     inline=False
                 )
-                embed.set_footer(text=f"Last checked: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+            
+            # Add small image to top left using set_author
+            # Use the correct format for attachment URLs in Discord
+            embed.set_author(
+                name=server_info['name'],
+                icon_url=f"attachment://{filename}"
+            )
+            
+            embed.set_footer(text=f"Last updated: {discord.utils.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC")
             
             try:
                 if server_info["status_message"]:
                     try:
-                        await server_info["status_message"].edit(embed=embed)
+                        # For editing, need to recreate the file each time
+                        new_icon_file = discord.File(server_info["icon_path"], filename=filename)
+                        await server_info["status_message"].edit(embed=embed, attachments=[new_icon_file])
                     except discord.NotFound:
-                        server_info["status_message"] = await channel.send(embed=embed)
+                        server_info["status_message"] = await channel.send(file=icon_file, embed=embed)
                 else:
                     found_message = False
                     async for message in channel.history(limit=20):
                         if message.author == self.user and message.embeds and message.embeds[0].title.startswith(server_info["name"]):
                             try:
-                                await message.edit(embed=embed)
+                                # For editing existing messages, need new file
+                                new_icon_file = discord.File(server_info["icon_path"], filename=filename)
+                                await message.edit(embed=embed, attachments=[new_icon_file])
                                 server_info["status_message"] = message
                                 found_message = True
                                 break
-                            except:
-                                pass
+                            except Exception as edit_error:
+                                print(f"Error editing message: {edit_error}")
                     
                     if not found_message:
-                        server_info["status_message"] = await channel.send(embed=embed)
+                        server_info["status_message"] = await channel.send(file=icon_file, embed=embed)
             except Exception as e:
                 print(f"Error updating status message for {server_info['name']}: {e}")
     
@@ -140,7 +155,7 @@ class MinecraftStatusBot(discord.Client):
         print('Monitoring Minecraft servers:')
         for idx, server_info in enumerate(self.servers):
             server_address = f"{MINECRAFT_SERVER_IP}:{MINECRAFT_PORT}" if idx == 0 else f"{MINECRAFT_SERVER_IP}"
-            print(f'- {server_info["name"]}: {server_address}')
+            print(f'- {server_info["name"]}: {server_address} (Icon: {server_info["icon_path"]})')
         print(f'Sending updates to channel ID: {CHANNEL_ID}')
         print('------')
 
