@@ -75,7 +75,7 @@ class MinecraftStatusBot(discord.Client):
             
             if status_data['player_list']:
                 players_str = "\n".join(status_data['player_list'])
-                if len(players_str) > 1024:  # Discord field value limit
+                if len(players_str) > 1024:
                     players_str = players_str[:1021] + "..."
                 embed.add_field(
                     name="Online Players", 
