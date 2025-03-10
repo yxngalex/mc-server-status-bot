@@ -45,7 +45,6 @@ class MinecraftStatusBot(discord.Client):
     
     @tasks.loop(seconds=60)
     async def update_status_loop(self):
-        """Update the server status message every 60 seconds"""
         if not self.is_ready():
             return
             
@@ -118,7 +117,6 @@ class MinecraftStatusBot(discord.Client):
     
     @update_status_loop.before_loop
     async def before_update_loop(self):
-        """Wait until the bot is ready before starting the loop"""
         await self.wait_until_ready()
         
     async def on_ready(self):
