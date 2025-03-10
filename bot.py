@@ -56,7 +56,6 @@ class MinecraftStatusBot(discord.Client):
             
         status_data = self.server_status()
         
-        # Create embed based on server status
         if status_data['online']:
             embed = discord.Embed(
                 title="Minecraft Server Status",
@@ -74,7 +73,6 @@ class MinecraftStatusBot(discord.Client):
                 inline=True
             )
             
-            # Add player list if available
             if status_data['player_list']:
                 players_str = "\n".join(status_data['player_list'])
                 if len(players_str) > 1024:  # Discord field value limit
