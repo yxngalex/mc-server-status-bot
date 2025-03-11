@@ -108,6 +108,6 @@ def setup(bot):
         if message.channel.id == CHAT_CHANNEL_ID:
             await chat_integration.send_to_minecraft(message.author.display_name, message.content)
         
-        await bot.process_commands(message)
+        # await bot.process_commands(message)
     
     return chat_integration
