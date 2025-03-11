@@ -4,6 +4,7 @@ import asyncio
 from mcstatus import JavaServer
 from discord.ext import tasks
 from config import DISCORD_TOKEN, CHANNEL_ID, MINECRAFT_SERVER_IP, MINECRAFT_PORT
+import chat
 
 class MinecraftStatusBot(discord.Client):
     def __init__(self, **kwargs):
@@ -54,6 +55,9 @@ class MinecraftStatusBot(discord.Client):
 
     async def setup_hook(self):
         self.update_status_loop.start()
+
+        self.chat_integration = chat.setup(self)
+        await self.chat_integration.initialize()
     
     @tasks.loop(seconds=60)
     async def update_status_loop(self):
