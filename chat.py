@@ -1,4 +1,3 @@
-import discord
 import asyncio
 import re
 from mcstatus import JavaServer
@@ -84,14 +83,9 @@ class ChatIntegration:
     
     async def send_to_minecraft(self, author, message):
         try:
-            server = JavaServer.lookup(f"{MINECRAFT_SERVER_IP}")
-            try:
-                status = server.status()
-                with MCRcon(MINECRAFT_SERVER_IP, RCON_PASSWORD, port=RCON_PORT) as mcr:
-                    formatted_message = f"tellraw @a {{\"text\":\"\",\"extra\":[{{\"text\":\"[Discord] \",\"color\":\"blue\"}},{{\"text\":\"{author}: \",\"color\":\"white\"}},{{\"text\":\"{message}\",\"color\":\"gray\"}}]}}"
-                    mcr.command(formatted_message)
-            except:
-                print("Cannot send message to Minecraft: Vanilla server appears to be offline")
+            with MCRcon(MINECRAFT_SERVER_IP, RCON_PASSWORD, port=RCON_PORT) as mcr:
+                formatted_message = f"tellraw @a {{\"text\":\"\",\"extra\":[{{\"text\":\"[Discord] \",\"color\":\"blue\"}},{{\"text\":\"{author}: \",\"color\":\"white\"}},{{\"text\":\"{message}\",\"color\":\"gray\"}}]}}"
+                mcr.command(formatted_message)
         except Exception as e:
             print(f"Error sending message to Minecraft: {e}")
 
