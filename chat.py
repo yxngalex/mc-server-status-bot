@@ -27,21 +27,26 @@ class ChatIntegration:
         return True
         
     async def monitor_server_logs(self):
+        print("Starting server log monitoring...")
         while True:
             try:
                 server = JavaServer.lookup(f"{MINECRAFT_SERVER_IP}")
                 try:
                     status = server.status()
+                    print("Server is online, checking logs..")
                     with open(self.log_file_path, 'r', encoding='utf-8') as log_file:
                         log_file.seek(max(0, self.last_log_position))
                         
                         new_lines = log_file.readlines()
+                        if new_lines:
+                            print(f"Found {len(new_lines)} new lines in log file")
                         
                         self.last_log_position = log_file.tell()
                         
                         for line in new_lines:
                             await self.process_log_line(line)
-                except:
+                except Exception as status_error:
+                    print(f"Server status check failed: {status_error}")
                     print("Vanilla server appears to be offline. Chat integration paused.")
                     await asyncio.sleep(30)
                     continue
@@ -54,10 +59,12 @@ class ChatIntegration:
             await asyncio.sleep(2)
     
     async def process_log_line(self, line):
+        print(f"Processing log line:{line.strip()}")
         chat_match = re.search(r'\[\d+:\d+:\d+\] \[Server thread/INFO\]: <([^>]+)> (.*)', line)
         if chat_match:
             player_name = chat_match.group(1)
             message = chat_match.group(2)
+            print(f"Found chat message from {player_name} : {message}")
             await self.send_to_discord(player_name, message)
             return
             
