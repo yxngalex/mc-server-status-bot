@@ -34,6 +34,7 @@ class ChatIntegration:
                 try:
                     status = server.status()
                     print("Server is online, checking logs..")
+                    print(self.log_file_path)
                     with open(self.log_file_path, 'r', encoding='utf-8') as log_file:
                         log_file.seek(max(0, self.last_log_position))
                         
@@ -107,6 +108,6 @@ def setup(bot):
         if message.channel.id == CHAT_CHANNEL_ID:
             await chat_integration.send_to_minecraft(message.author.display_name, message.content)
         
-        # await bot.process_commands(message)
+        await bot.process_commands(message)
     
     return chat_integration
